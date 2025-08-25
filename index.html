@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Sales Assistant - Ridealongs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            --ai-primary: #7154ff;
+            --ai-secondary: #00a3ff;
+            --ai-bg: #f8f9fa;
+        }
+        /* Fix: Tailwind won't know bg-ai-bg; add a utility */
+        .bg-ai-bg { background-color: var(--ai-bg); }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInModal {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out forwards;
+        }
+        .modal-container {
+            animation: fadeInModal 0.3s ease-out forwards;
+        }
+        .material-icons {
+            font-family: 'Material Icons';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+        /* Custom Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 28px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--ai-primary);
+        }
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+        /* Speaking Indicator */
+        .speaking-indicator.speaking {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(129, 140, 248, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(129, 140, 248, 0); }
+        }
+    </style>
+</head>
+<body class="bg-ai-bg text-gray-800">
+
+    <!-- Main AI Assistant Configuration Page -->
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+        <header class="mb-8 flex items-center gap-4">
+             <img src="https://i.ibb.co/7j29x9G/ai-sales-assistant-logo.png" alt="AI Sales Assistant Logo" class="w-16 h-16">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">AI Sales Assistant</h1>
+                <p class="text-gray-600 mt-1 text-lg">Configuration</p>
+            </div>
+        </header>
+
+        <!-- Capabilities Card -->
+        <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h2 class="text-xl font-semibold mb-4">Capabilities</h2>
+            <div class="space-y-4">
+                <!-- Ridealongs Capability -->
+                <div class="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                        <h3 class="font-semibold text-lg flex items-center gap-2"><i class="material-icons text-gray-600">directions_car</i>Ridealongs</h3>
+                        <p class="text-gray-600 text-sm">Enable the AI to provide pre-appointment briefings for upcoming jobs.</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="ridealongs-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <!-- Ridealongs Buttons - Hidden by default -->
+                <div id="ridealongs-button-container" class="hidden flex justify-end gap-4">
+                    <button id="call-agent-btn" class="bg-gray-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2">
+                        <i class="material-icons">call</i>
+                        Call Your Agent
+                    </button>
+                    <button id="view-ridealongs-btn" class="bg-indigo-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                        <i class="material-icons">visibility</i>
+                        View Upcoming Appointments
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ridealongs Modal -->
+    <div id="ridealongs-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 modal-container">
+        <div class="bg-ai-bg rounded-xl shadow-2xl w-full max-w-7xl h-full max-h-[90vh] flex flex-col">
+            <!-- Modal Header -->
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <img src="https://i.ibb.co/7j29x9G/ai-sales-assistant-logo.png" alt="AI Sales Assistant Logo" class="w-12 h-12">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">Ridealongs Briefing</h2>
+                        <p class="text-gray-500">Your pre-appointment dashboard.</p>
+                    </div>
+                </div>
+                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800">
+                    <i class="material-icons">close</i>
+                </button>
+            </div>
+            <!-- Modal Content -->
+            <div class="flex flex-col lg:flex-row gap-8 p-6 overflow-hidden flex-grow">
+                <!-- Appointments List -->
+                <aside class="lg:w-1/3 bg-white p-4 rounded-lg shadow-inner border border-gray-200 overflow-y-auto">
+                    <h2 class="text-xl font-semibold mb-4 pb-2 border-b-2 border-gray-200 flex items-center gap-2 sticky top-0 bg-white pt-2">
+                        <i class="material-icons text-gray-600">calendar_today</i>
+                        Upcoming Appointments
+                    </h2>
+                    <div id="appointments-list" class="space-y-3">
+                        <!-- Appointments will be dynamically inserted here -->
+                    </div>
+                </aside>
+                <!-- Briefing Display -->
+                <main id="briefing-display" class="lg:w-2/3 overflow-y-auto">
+                     <div id="briefing-placeholder" class="flex flex-col items-center justify-center h-full text-center text-gray-500 bg-white p-6 rounded-lg shadow-inner border border-gray-200">
+                        <i class="material-icons text-6xl text-gray-300 mb-4">info_outline</i>
+                        <h3 class="text-lg font-medium">Select an Appointment</h3>
+                        <p class="text-sm max-w-xs">Choose an appointment from the list on the left to get your AI-powered briefing.</p>
+                    </div>
+                    <div id="briefing-content" class="hidden">
+                        <!-- Briefing content will be populated here -->
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- DATA AND LOGIC ---
+
+        class RidealongAgent {
+            constructor() {
+                const contacts = [
+                    { id: 'contact-1', name: 'The Miller Family', address: '123 Maple St, Saskatoon' },
+                    { id: 'contact-2', name: 'Mr. Henderson', address: '455 Oak Ave, Saskatoon' },
+                    { id: 'contact-3', name: 'Sarah Jenkins (Airbnb Host)', address: '789 Pine Ln, Saskatoon' },
+                    { id: 'contact-4', name: 'Dr. Emily Carter', address: '101 Birch Rd, Saskatoon' },
+                ];
+
+                const now = new Date();
+                this.appointments = [
+                    { id: 'appt-1', title: 'Walkthrough & Quote', time: new Date(now.getTime() + 2 * 3600 * 1000), attendees: [contacts[0]], type: 'Quote', source: 'AI Webchat' },
+                    { id: 'appt-2', title: 'Bi-weekly Cleaning', time: new Date(now.getTime() + 24 * 3600 * 1000), attendees: [contacts[1]], type: 'Service', source: 'Phone Call' },
+                    { id: 'appt-3', title: 'Post-Turnover Deep Clean', time: new Date(now.getTime() + 2 * 24 * 3600 * 1000), attendees: [contacts[2]], type: 'Service', source: 'Website Form' },
+                    { id: 'appt-4', title: 'Initial Deep Clean Service', time: new Date(now.getTime() + 3 * 24 * 3600 * 1000), attendees: [contacts[3]], type: 'Service', source: 'Referral' },
+                ];
+            }
+
+            async getUpcomingAppointments() { return this.appointments; }
+
+            async prepareBriefing(appointmentId) {
+                const appointment = this.appointments.find(a => a.id === appointmentId);
+                if (!appointment) return null;
+
+                const keyPoints = {
+                    'appt-1': ['Client is a family with two young children and a dog.', 'Primary concern is pet hair and using kid-safe, eco-friendly products.', 'They are looking for a bi-weekly service if the quote is reasonable.', 'Upsell opportunity: Mention our window and carpet cleaning services.'],
+                    'appt-2': ['Long-term client, very particular about the kitchen and bathroom.', 'Remember to use the special cleaner they provide for the hardwood floors.', 'They will leave a key under the mat.'],
+                    'appt-3': ['Airbnb property, requires a quick but thorough turnover.', 'Focus on sanitation, especially in the kitchen and bathrooms.', 'Check for any damages and report back immediately.', 'New guests are checking in at 4 PM, so timing is critical.'],
+                    'appt-4': ['New client, referred by Mr. Henderson.', 'This is their first time using a professional cleaning service.', 'Walk them through the process at the beginning to build trust.', 'They have a cat, be mindful of leaving doors open.']
+                }[appointmentId] || ['No specific key points available.'];
+
+                return {
+                    appointmentTitle: appointment.title,
+                    scheduledTime: appointment.time.toLocaleString([], { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+                    attendees: appointment.attendees.map(c => ({ name: c.name, address: c.address })),
+                    keyPoints,
+                    type: appointment.type,
+                    source: appointment.source,
+                };
+            }
+        }
+
+        // --- UI MANIPULATION ---
+
+        const agent = new RidealongAgent();
+        const appointmentsListEl = document.getElementById('appointments-list');
+        const briefingPlaceholderEl = document.getElementById('briefing-placeholder');
+        const briefingContentEl = document.getElementById('briefing-content');
+        const ridealongsToggle = document.getElementById('ridealongs-toggle');
+        const ridealongsButtonContainer = document.getElementById('ridealongs-button-container');
+        const viewRidealongsBtn = document.getElementById('view-ridealongs-btn');
+        const callAgentBtn = document.getElementById('call-agent-btn');
+        const ridealongsModal = document.getElementById('ridealongs-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+
+        // --- Speech Synthesis ---
+        function speak(text, buttonEl) {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel(); // Stop any previous speech
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.onstart = () => buttonEl.classList.add('speaking');
+            utterance.onend = () => buttonEl.classList.remove('speaking');
+            window.speechSynthesis.speak(utterance);
+        }
+        
+        function generateBriefingSpeech(briefing) {
+            const attendeesText = briefing.attendees.map(a => `${a.name} at ${a.address}`).join(', and ');
+            const keyPointsText = briefing.keyPoints.join('. ');
+            const sourceText = `This lead came from ${briefing.source}.`;
+            return `Briefing for ${briefing.appointmentTitle} at ${briefing.scheduledTime}. ${sourceText} Attendees are ${attendeesText}. Key points are: ${keyPointsText}`;
+        }
+
+        async function generateAllAppointmentsSpeech() {
+            const appointments = await agent.getUpcomingAppointments();
+            if (appointments.length === 0) return "You have no upcoming appointments.";
+            
+            let summary = "Hello! Here is a summary of your upcoming appointments. ";
+            appointments.forEach((appt, index) => {
+                const clientName = appt.attendees[0]?.name || 'an unknown client';
+                const time = appt.time.toLocaleString([], { hour: 'numeric', minute: '2-digit' });
+                summary += `Appointment ${index + 1}: A ${appt.title} for ${clientName} at ${time}. `;
+            });
+            return summary;
+        }
+
+        function getSourceIcon(source) {
+            switch (source) {
+                case 'AI Webchat': return 'smart_toy';
+                case 'Website Form': return 'description';
+                case 'Phone Call': return 'call';
+                case 'Referral': return 'group';
+                default: return 'help_outline';
+            }
+        }
+
+        function renderAppointments(appointments) {
+            if (!appointmentsListEl) return;
+            appointmentsListEl.innerHTML = appointments.length === 0 
+                ? '<p class="text-gray-500 p-4">No upcoming appointments found.</p>'
+                : appointments.map(appt => {
+                    const clientName = appt.attendees[0]?.name || 'N/A';
+                    const typeBadge = appt.type === 'Quote' 
+                        ? '<span class="text-xs font-medium bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Quote</span>'
+                        : '<span class="text-xs font-medium bg-green-100 text-green-800 px-2 py-1 rounded-full">Service</span>';
+                    const sourceIcon = getSourceIcon(appt.source);
+                    return `
+                        <div class="p-4 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-indigo-50 hover:border-indigo-400 transition-colors duration-200" data-id="${appt.id}">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-semibold text-gray-800">${appt.title}</p>
+                                    <p class="text-sm text-gray-500">For: ${clientName}</p>
+                                </div>
+                                ${typeBadge}
+                            </div>
+                            <div class="flex justify-between items-center mt-2">
+                                <p class="text-sm text-gray-600">${appt.time.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                                <div class="flex items-center gap-1 text-xs text-gray-500">
+                                    <i class="material-icons text-sm">${sourceIcon}</i>
+                                    <span>${appt.source}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                }).join('');
+        }
+
+        function renderBriefing(briefing) {
+            if (!briefingContentEl || !briefingPlaceholderEl) return;
+            
+            briefingPlaceholderEl.classList.add('hidden');
+            briefingContentEl.classList.remove('hidden');
+            briefingContentEl.classList.add('fade-in');
+
+            const clientInfoHtml = briefing.attendees.map(attendee => {
+                const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(attendee.address);
+                return `
+                <div class="flex items-start py-2">
+                    <i class="material-icons text-gray-500 mt-1 mr-4">person</i>
+                    <div>
+                        <p class="font-medium text-gray-900">${attendee.name}</p>
+                        <a href="${mapsUrl}" target="_blank" class="text-sm text-blue-600 hover:underline flex items-center gap-1">
+                           ${attendee.address} <i class="material-icons text-sm">open_in_new</i>
+                        </a>
+                    </div>
+                </div>`;
+            }).join('');
+
+            const keyPointsHtml = briefing.keyPoints.map(point => `
+                <li class="flex items-start py-2">
+                    <i class="material-icons text-green-500 mt-1 mr-4">check_circle</i>
+                    <p class="text-gray-700">${point}</p>
+                </li>`).join('');
+            
+            const sourceIcon = getSourceIcon(briefing.source);
+            const sourceHtml = `
+                <div class="flex items-start py-2">
+                    <i class="material-icons text-gray-500 mt-1 mr-4">${sourceIcon}</i>
+                    <div>
+                        <p class="font-medium text-gray-900">${briefing.source}</p>
+                    </div>
+                </div>`;
+
+            briefingContentEl.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-inner border border-gray-200">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-2xl font-bold">${briefing.appointmentTitle}</h2>
+                            <p class="text-md text-gray-500">${briefing.scheduledTime}</p>
+                        </div>
+                        <button id="play-briefing-btn" class="speaking-indicator bg-blue-600 text-white font-semibold px-4 py-2 rounded-full hover:bg-blue-700 transition-colors flex items-center gap-2">
+                            <i class="material-icons text-base">play_arrow</i>
+                            <span>Play Briefing</span>
+                        </button>
+                    </div>
+                    <div class="mb-6 border-t pt-4">
+                        <h3 class="text-lg font-semibold mb-2 text-gray-800 flex items-center gap-2"><i class="material-icons">track_changes</i>Lead Source</h3>
+                        ${sourceHtml}
+                    </div>
+                    <div class="mb-6 border-t pt-4">
+                        <h3 class="text-lg font-semibold mb-2 text-gray-800 flex items-center gap-2"><i class="material-icons">groups</i>Client Info</h3>
+                        ${clientInfoHtml}
+                    </div>
+                    <div class="border-t pt-4">
+                        <h3 class="text-lg font-semibold mb-2 text-gray-800 flex items-center gap-2"><i class="material-icons">fact_check</i>Key Points & Instructions</h3>
+                        <ul class="space-y-1">${keyPointsHtml}</ul>
+                    </div>
+                </div>`;
+            
+            const playBtn = document.getElementById('play-briefing-btn');
+            if (playBtn) {
+                playBtn.addEventListener('click', (e) => {
+                    const speechText = generateBriefingSpeech(briefing);
+                    speak(speechText, e.currentTarget);
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (ridealongsToggle) {
+                ridealongsToggle.addEventListener('change', () => {
+                    ridealongsButtonContainer.classList.toggle('hidden');
+                });
+            }
+
+            if (viewRidealongsBtn) viewRidealongsBtn.addEventListener('click', () => ridealongsModal.classList.remove('hidden'));
+            if (closeModalBtn) closeModalBtn.addEventListener('click', () => ridealongsModal.classList.add('hidden'));
+            
+            if (callAgentBtn) {
+                callAgentBtn.addEventListener('click', async (e) => {
+                    const speechText = await generateAllAppointmentsSpeech();
+                    speak(speechText, e.currentTarget);
+                });
+            }
+            
+            if (ridealongsModal) {
+                ridealongsModal.addEventListener('click', (e) => {
+                    if (e.target === ridealongsModal) ridealongsModal.classList.add('hidden');
+                });
+            }
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === "Escape" && !ridealongsModal.classList.contains('hidden')) {
+                    ridealongsModal.classList.add('hidden');
+                }
+            });
+            
+            const appointments = await agent.getUpcomingAppointments();
+            renderAppointments(appointments);
+
+            appointmentsListEl.addEventListener('click', async (e) => {
+                const appointmentCard = e.target.closest('[data-id]');
+                if (appointmentCard) {
+                    const appointmentId = appointmentCard.dataset.id;
+                    
+                    document.querySelectorAll('#appointments-list > div').forEach(card => card.classList.remove('bg-indigo-100', 'border-indigo-500'));
+                    appointmentCard.classList.add('bg-indigo-100', 'border-indigo-500');
+
+                    const briefing = await agent.prepareBriefing(appointmentId);
+                    if (briefing) {
+                        briefingContentEl.classList.remove('fade-in');
+                        void briefingContentEl.offsetWidth;
+                        renderBriefing(briefing);
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
